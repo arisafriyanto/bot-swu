@@ -1,6 +1,7 @@
 const express = require('express');
 const wppconnect = require('@wppconnect-team/wppconnect');
 const cors = require('cors');
+require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -10,7 +11,7 @@ app.use(express.static(__dirname));
 app.use(cors());
 app.use(express.json());
 
-const sessionName = 'swu-token';
+const sessionName = 'token-swu';
 let client = null;
 
 app.get('/', (req, res) => {
@@ -23,22 +24,30 @@ app.get('/', (req, res) => {
             session: sessionName,
             headless: true,
             puppeteerOptions: {
-                args: ['--no-sandbox'],
+                args: ['--disable-setuid-sandbox', '--no-sandbox', '--single-process', '--no-zygote'],
+                executablePath:
+                    process.env.NODE_ENV === 'production'
+                        ? process.env.PUPPETEER_EXECUTABLE_PATH
+                        : '/usr/bin/google-chrome-stable',
             },
             autoClose: 0,
             catchQR: (base64Qr, asciiQR) => {
                 res.setHeader('Content-Type', 'text/html');
                 res.send(`<img src="${base64Qr}" alt="WhatsApp QR Code">`);
-                return;
             },
             logQR: false,
+            statusFind: (statusSession, session) => {
+                //return isLogged || notLogged || browserClose || qrReadSuccess || qrReadFail || autocloseCalled || desconnectedMobile || deleteToken
+
+                if (statusSession === 'isLogged') {
+                    return res.status(200).json({ message: 'Sudah terhubung ke WhatsApp nih' });
+                }
+            },
         })
         .then((_client) => {
             client = _client;
             start(client);
-            if (client && client.isLogged) {
-                return res.status(200).json({ message: 'Sudah terhubung ke WhatsApp' });
-            }
+            console.log(client);
         })
         .catch((error) => {
             console.log(error);
